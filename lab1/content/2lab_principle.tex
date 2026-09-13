@@ -1,0 +1,84 @@
+\section{实验原理}
+\subsection{ARP}
+ARP(Address Resolution Protocol,地址解析协议)，用于将IP地址解析为MAC地址。因为以太网通信时除了知道IP地址外，还需要知道下一跳的MAC地址，才能发送以太网帧。比如
+A与B通信时，A希望给B发送以太网帧，就必须知道B的MAC地址，如果A,B不在同一个网段，那么A需要知道网关的MAC地址。
+
+当发送IP数据包时，主机先查询自己的ARP缓存表，如果已经有目标IP和MAC的映射，则直接使用该映射发送以太网帧(IP数据包封装在以太网帧中)。如果没有，则需要先构造ARP请求，具体过程如下:
+\begin{itemize}
+    \item ARP请求时发送广播帧，源MAC地址为A的MAC地址，目的MAC地址为$\texttt{FF:FF:FF:FF:FF:FF}$即广播帧；以太网类型为$\texttt{0x0806}$表示ARP；操作码为1，表示请求；源IP地址为A的IP地址；ARP报文中的目标硬件地址字段为全0(因为此时还不知道目标MAC地址)，目的IP地址为要解析的IP地址，如B的IP或网关IP。
+    \item 交换机收到广播帧后会向同一广播域内的其他端口泛洪，因此同一局域网内的主机都会收到该ARP请求的广播帧，但只有目标IP匹配的主机才会处理该请求，其他主机直接丢弃。
+    \item 目标主机(或网关)发现所问的就是自己时，首先会更新自身的ARP缓存，记录请求方的IP和MAC地址；接着构造ARP响应，操作码为2，该回复的以太网帧的目的MAC是请求方MAC，即以单播回复。
+    \item A收到ARP响应后将对应的下一跳IP与下一跳的MAC对应关系记录下来，写入ARP缓存中。
+\end{itemize}
+
+\subsection{ICMP}
+ICMP(Internet Control Message Protocol,互联网控制报文协议)属于网络层协议，但封装在IP包中，IPv4首部中的协议号为1表示上层协议为ICMP。它不是面向应用的数据传输协议，主要用于报告错误、网络诊断和路由控制等。
+常见类型包括：
+\begin{itemize}
+    \item 查询类报文：Echo Request的Type为8，用于请求目标主机回应；Echo Reply的Type为0，用于回应Echo Request。
+\end{itemize}
+
+差错类报文及其常见用途如下，其中Redirect报文会在子网掩码配置错误的实验中出现：
+\begin{table}[htbp]
+    \centering
+    \caption{常见ICMP差错类报文}
+    \label{tab:icmp-error-types}
+    \begin{tabular}{ccc}
+        \toprule
+        类型 & 名称 & 用途 \\
+        \midrule
+        3  & Destination Unreachable & 目标不可达 \\
+        4  & Source Quench & 源抑制，已废弃 \\
+        5  & Redirect & 重定向，告知主机有更好的下一跳 \\
+        11 & Time Exceeded & 超时，TTL减到0或分片重组超时 \\
+        12 & Parameter Problem & IP头部字段问题 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Type 3和Type 11报文中常见的Code字段含义如下：
+\begin{table}[htbp]
+    \centering
+    \caption{ICMP Type 3的常见Code}
+    \label{tab:icmp-type3-code}
+    \begin{tabular}{cc}
+        \toprule
+        Code & 含义 \\
+        \midrule
+        0 & 网络不可达 \\
+        1 & 主机不可达 \\
+        2 & 协议不可达 \\
+        3 & 端口不可达 \\
+        4 & 需要分片但DF位置位 \\
+        5 & 源路由失败 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+    \centering
+    \caption{ICMP Type 11的常见Code}
+    \label{tab:icmp-type11-code}
+    \begin{tabular}{cc}
+        \toprule
+        Code & 含义 \\
+        \midrule
+        0 & TTL超时 \\
+        1 & 分片重组超时 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Ping}
+Ping的本质是发送$\texttt{ICMP Echo Request}$，等待对方回复$\texttt{ICMP Echo Reply}$，计算往返时间RTT。Ping并不使用TCP/UDP，因此没有端口，而是直接使用ICMP。
+Ping的完整流程如下(假设A Ping B):
+\begin{itemize}
+    \item 解析目标IP：A执行$\texttt{ping test.com}$，此时Ping的目标如果是域名，系统先会做DNS解析，得到对应的IP；如果Ping的是IP，则直接使用。
+    \item 构造ICMP报文(Type=8，类型为Echo Request)：封装进IP包，加上IP头部信息，包括源IP(A的IP地址)和目的IP(B的IP地址)，协议号为1表示ICMP。
+    \item 封装IP包：发送前必须知道下一跳MAC，如果是B在相同子网下，下一跳就是B，ARP解析出B的MAC地址（查ARP缓存或构造ARP请求）；如果B与A不在同一子网，即跨网段了，则ARP解析网关的MAC地址。最终封装成以太网帧并发出。
+    \item 网络转发：若B与A在相同子网，则由交换机根据MAC和端口映射关系直接转发；若不在同一子网，则由路由器转发，经过路由器时会去掉原来的以太网帧头，将其中的IP包部分字段做修改(如TTL值减一、重新计算校验和等)，查询路由表确认下一跳IP地址以及对应MAC地址，重新封装以太网帧(如果TTL减为0，路由器直接丢包，并返回ICMP Time Exceeded)。
+    \item 收到ICMP请求：当B收到IP包后，检查发现目的IP的确是自身且协议是ICMP(类型8，Echo Request)，然后B将构造Echo Reply并将该回复发送给A(该过程同样要经历查ARP并发送给下一跳)。
+    \item 收到ICMP回复：当A收到Echo Reply后会先检查ICMP校验和、检查序号等参数与之前的请求相匹配，然后用收到时间减去发送时的时间计算RTT。
+\end{itemize}
+
+
