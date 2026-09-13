@@ -1,0 +1,141 @@
+% 实验一：使用 tcpdump 分析 ICMP 流量
+% 本节记录子网内、跨子网和子网掩码错误三种情况下的实验结果。
+\section{实验一：使用 tcpdump 分析 ICMP 流量}
+
+\subsection{实验配置}
+
+本实验使用VMware搭建实验环境，Client(Attacker)通过OpenWRT路由器与其他主机进行通信。Client使用的网卡为\texttt{ens33}，其地址为192.168.3.10，OpenWRT内网接口地址为192.168.3.1，Victim地址为192.168.3.200，External Server地址为192.168.4.105。实验开始时Client和Victim使用/24掩码，第三部分实验再将Client的掩码修改为/28。
+
+在Client上使用如下命令清空ARP缓存并捕获ARP和ICMP报文：
+\begin{lstlisting}[language=bash,caption={Client上的tcpdump抓包命令}]
+sudo ip neigh flush dev ens33
+sudo tcpdump -i ens33 -n -e 'arp or icmp'
+\end{lstlisting}
+
+其中，\texttt{-i ens33}表示在\texttt{ens33}网卡上抓包，\texttt{-n}表示不进行地址解析，\texttt{-e}表示显示以太网帧头中的MAC地址。
+
+\subsection{子网内通信}
+首先登录Client，查看当前的网络接口、可监听的网卡、ARP缓存表等如下图:
+\labfigure[1\linewidth]{figures/exp1_client_ipinfo.png}{client的网络信息}{fig:task1-client-ipinfo}
+然后在Client上清空ARP缓存，在另一个终端执行(注意此前Client已经开启监听ens33网卡)：
+\begin{lstlisting}[language=bash,caption={子网内通信测试}]
+ping -c 4 192.168.3.200
+\end{lstlisting}
+
+由于192.168.3.10和192.168.3.200均属于192.168.3.0/24，Client判断目标主机与自己处于同一子网内，因此不会先将数据发送给网关，而是直接广播ARP请求，询问192.168.3.200对应的MAC地址。Victim收到请求后单播返回ARP响应，Client随后将ICMP Echo Request直接发送给Victim。
+
+从抓包结果可以看到，ARP请求的源MAC地址为Client的MAC地址\texttt{00:\allowbreak 0c:\allowbreak 29:\allowbreak bf:\allowbreak ed:\allowbreak f6}，目的以太网MAC地址为广播地址；ARP响应的源MAC地址为Victim的MAC地址\texttt{00:\allowbreak 0c:\allowbreak 29:\allowbreak 2c:\allowbreak 12:\allowbreak a8}。之后出现源IP为192.168.3.10、目的IP为192.168.3.200的ICMP Echo Request，以及方向相反的ICMP Echo Reply。
+
+\labfigure[1\linewidth]{figures/exp1_1_internal_ping.png}{子网内Client与Victim通信的tcpdump抓包结果}{fig:task1-internal-ping}
+
+\subsection{跨子网通信}
+
+在保持Client地址不变的情况下，清空ARP缓存后访问External Server：
+\begin{lstlisting}[language=bash,caption={跨子网通信测试}]
+sudo ip neigh flush dev ens33
+ping -c 4 192.168.4.105
+\end{lstlisting}
+
+192.168.4.105不属于Client所在的192.168.3.0/24网段，因此Client需要将数据包交给默认网关192.168.3.1。Client首先通过ARP请求获取网关的MAC地址，OpenWRT返回ARP响应。之后，Client发送的以太网帧目的MAC地址是OpenWRT内网接口的MAC地址\texttt{00:0c:29:c2:73:ed}，但IP层的目的地址仍然是External Server的192.168.4.105。
+
+在Client的\texttt{ens33}网卡上抓包时，看到的跨网段ICMP报文为192.168.3.10与192.168.4.105之间的Echo Request和Echo Reply，而以太网帧的下一跳MAC地址是OpenWRT的MAC地址。这说明路由器负责三层转发，并在不同网段重新封装以太网帧。
+
+\labfigure[1\linewidth]{figures/exp1_2_external_server_configure.png}{External Server的网络配置}{fig:task1-external-config}
+\labfigure[1\linewidth]{figures/exp1_2_verify_configure.png}{跨子网通信前的配置验证}{fig:task1-cross-config}
+\labfigure[1\linewidth]{figures/exp1_2_external_server.png}{Client访问External Server的实验结果}{fig:task1-external-ping}
+
+\subsection{子网掩码错误}
+
+第三部分实验按照实验指导书的要求，将Client的子网掩码由/24修改为/28。修改后Client的地址和路由信息为：
+\begin{lstlisting}[language=bash,caption={修改Client子网掩码并验证}]
+sudo nano /etc/netplan/01-network-manager-all.yaml
+sudo netplan generate
+sudo netplan try
+ip -br addr show ens33
+ip route
+\end{lstlisting}
+
+修改后，Client的地址变为192.168.3.10/28，直连网段为192.168.3.0/28。虽然Victim的地址仍然是192.168.3.200，并且二者实际上连接在同一个二层网络中，但Client根据/28掩码判断192.168.3.200不属于本地子网，因此首先将ICMP报文发送给默认网关192.168.3.1。
+
+由于OpenWRT发现目标192.168.3.200与报文进入的接口相同，路由器向Client返回了ICMP Redirect报文，并提示新的下一跳为192.168.3.200。Client收到重定向后重新进行ARP解析，获取Victim的MAC地址，之后直接向Victim发送ICMP Echo Request。因此，抓包中依次可以观察到：Client与网关之间的ARP请求和响应、ICMP Redirect、Client对Victim的ARP请求和响应，以及最终的ICMP Echo Request和Echo Reply。
+
+\labfigure[1\linewidth]{figures/exp1_3_tempchange_mask.png}{修改Client子网掩码为/28}{fig:task1-mask-change}
+\labfigure[1\linewidth]{figures/exp1_3_verify_configure_change.png}{/28掩码配置验证}{fig:task1-mask-verify}
+\labfigure[1\linewidth]{figures/exp1_3ping_result.png}{子网掩码错误时的tcpdump与ping结果}{fig:task1-mask-result}
+
+从图中可以看到，ping过程中出现了“Redirect Host”提示，同时也收到了Victim的Echo Reply。终端最后显示3个数据包中收到2个回复，并统计了2个错误。这里的错误是Linux的ping程序将ICMP Redirect作为错误报文统计的结果，并不表示Victim完全不可达；tcpdump已经证明重定向前后均存在ICMP Echo Reply。
+
+\subsection{流量分析记录表}
+
+表\ref{tab:task1-flow}按照实验指导书中的表1-1-1填写。表中的MAC地址是从Client的\texttt{ens33}网卡抓包结果中读取的；因此在跨子网通信中，Client看到的下一跳MAC是OpenWRT内网接口的MAC，而不是External Server在另一个网段中的MAC。
+
+\begin{table}[htbp]
+    \centering
+    \caption{实验一流量分析记录表}
+    \label{tab:task1-flow}
+    \scriptsize
+    \setlength{\tabcolsep}{2.5pt}
+    \renewcommand{\arraystretch}{1.45}
+    \resizebox{\linewidth}{!}{%
+    \begin{tabular}{c|cc|cc|cc|cc}
+        \toprule
+        操作 & \multicolumn{2}{c|}{ARP请求} & \multicolumn{2}{c|}{ARP响应} & \multicolumn{2}{c|}{ICMP ECHO请求} & \multicolumn{2}{c}{ICMP ECHO响应} \\
+        & 源MAC & 目标MAC & 源MAC & 目标MAC & 源IP & 目标IP & 源IP & 目标IP \\
+        \midrule
+        子网内
+        & \texttt{00:0c:29:bf:ed:f6}
+        & \texttt{ff:ff:ff:ff:ff:ff}
+        & \texttt{00:0c:29:2c:12:a8}
+        & \texttt{00:0c:29:bf:ed:f6}
+        & 192.168.3.10
+        & 192.168.3.200
+        & 192.168.3.200
+        & 192.168.3.10 \\
+        跨子网
+        & \texttt{00:0c:29:bf:ed:f6}
+        & \texttt{ff:ff:ff:ff:ff:ff}
+        & \texttt{00:0c:29:c2:73:ed}
+        & \texttt{00:0c:29:bf:ed:f6}
+        & 192.168.3.10
+        & 192.168.4.105
+        & 192.168.4.105
+        & 192.168.3.10 \\
+        掩码错（初始）
+        & \texttt{00:0c:29:bf:ed:f6}
+        & \texttt{ff:ff:ff:ff:ff:ff}
+        & \texttt{00:0c:29:c2:73:ed}
+        & \texttt{00:0c:29:bf:ed:f6}
+        & 192.168.3.10
+        & 192.168.3.200
+        & 192.168.3.200
+        & 192.168.3.10 \\
+        掩码错（重定向后）
+        & \texttt{00:0c:29:bf:ed:f6}
+        & \texttt{ff:ff:ff:ff:ff:ff}
+        & \texttt{00:0c:29:2c:12:a8}
+        & \texttt{00:0c:29:bf:ed:f6}
+        & 192.168.3.10
+        & 192.168.3.200
+        & 192.168.3.200
+        & 192.168.3.10 \\
+        \bottomrule
+    \end{tabular}}
+\end{table}
+
+根据实际的Ping结果应当指出，“掩码错”对应两个阶段：初始阶段Client向网关192.168.3.1发出ARP请求，ARP响应来自OpenWRT；收到ICMP Redirect后，Client再次发出ARP请求，ARP响应来自Victim。两个阶段的ICMP源、目的IP仍然是192.168.3.10和192.168.3.200，变化的是以太网帧的下一跳MAC地址。
+
+\subsection{三次操作的结果差异及原因分析}
+
+根据表\ref{tab:task1-flow}，三次操作的主要差异在于ARP解析的对象、以太网帧的下一跳MAC地址以及是否经过路由器转发，具体原因是Client的子网掩码改变了它对目标地址所属网络的判断。
+
+\begin{itemize}
+    \item 子网内通信时，Client和Victim都属于192.168.3.0/24。Client直接ARP解析Victim的MAC地址，之后以太网帧由交换机直接转发，ICMP Echo Request和Echo Reply的IP地址分别为192.168.3.10和192.168.3.200，过程中不需要经过OpenWRT进行三层路由。
+    \item 跨子网通信时，External Server不属于Client所在的192.168.3.0/24网段。Client不能直接解析External Server的MAC地址，而是ARP解析默认网关192.168.3.1的MAC地址，由OpenWRT进行三层转发。因此在Client的网卡上，IP层的目的地址是External Server的地址，但以太网帧的目的MAC地址是OpenWRT内网接口的MAC地址。
+    \item 子网掩码错误时，Client使用192.168.3.10/28，将192.168.3.200错误判断为远端地址，所以首先ARP解析网关并把ICMP报文发送给OpenWRT。OpenWRT发现目标与报文进入同一个内网接口，于是返回ICMP Redirect，并告知Client可以把192.168.3.200作为新的下一跳。Client随后重新ARP解析Victim并直接发送数据。因此，该操作同时出现了网关ARP、ICMP Redirect和Victim ARP，形成了与前两次操作不同的报文序列。
+\end{itemize}
+
+由此可见，三次操作中ICMP报文的IP通信端点并不一定改变，但子网掩码会影响主机的路由判断，进而决定ARP请求的目标、以太网帧的下一跳以及是否触发路由器的重定向。
+
+\subsection{实验小结}
+
+本实验通过tcpdump观察了ARP和ICMP报文在不同网络配置下的变化。子网内通信时，Client直接解析Victim的MAC地址并发送数据；跨子网通信时，Client解析默认网关的MAC地址，由OpenWRT完成三层转发；子网掩码错误时，Client错误地把同一二层网络中的Victim判断为远端主机，先将数据交给网关，并收到ICMP Redirect。由此可以看出，子网掩码不仅决定主机对目标地址的判断，也会直接影响ARP解析对象、下一跳选择和数据包的转发过程。

@@ -1,0 +1,41 @@
+\documentclass{lab1report}
+
+% 封面信息：只需修改下面各项。
+\course{网络安全}
+\reporttitle{实验报告}
+\student{江李阳(学号:202400460042)，王健一(学号:202400460039)，邱泽辉(学号:202400460046)}
+\instructor{郭山清}
+\college{网络空间安全学院}
+\major{密码科学与技术2024级一班}
+\completiondate{2026 年  9月  10日}
+
+% 参考资料写入 references.bib；直接引用使用 \labquote[页码]{文献键}。
+\addbibresource{references.bib}
+
+\begin{document}
+\makecover
+
+% 公共章节：按实验报告要求保留，正文由作者自行填写。
+\input{content/1lab_target.tex}
+% 在此填写实验目标。
+% 在此填写实验原理。
+\input{content/2lab_principle.tex}
+\section{实验设置}
+% 在此填写 VMware、OpenWRT、网卡、地址和工具版本等实验设置。
+
+% 三个任务分别维护在 content/ 目录中。
+\input{content/task1}
+\input{content/task2}
+\input{content/task3}
+
+\section{实验讨论}
+% 在此填写实验讨论、问题分析和个人思考。
+
+\section{参考资料}
+% 直接引用请使用 \verb|\labquote[页码]{文献键}|；实际参考过的资料写入 references.bib。
+\printbibliography[heading=none]
+
+\section{附录：关键代码}
+% 在此填写或使用 \lstinputlisting 引入完整、可运行、带注释的关键代码。
+
+\end{document}
