@@ -94,7 +94,7 @@
 
 % 图片辅助命令：\labfigure[宽度]{文件}{标题}{标签}
 \NewDocumentCommand{\labfigure}{O{0.86\linewidth} m m m}{%
-  \begin{figure}[htbp]
+  \begin{figure}[H]
     \centering
     \includegraphics[width=#1]{#2}
     \caption{#3}
