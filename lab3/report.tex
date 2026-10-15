@@ -1,0 +1,63 @@
+\documentclass{lab1report}
+\usepackage{float}
+
+% 封面信息：请填写本组实际信息。
+\course{网络安全}
+\reporttitle{实验报告}
+\student{江李阳(202400460042)王健一(202400460037)邱泽辉(202400460046)}
+\instructor{郭山清}
+\college{网络空间安全学院}
+\major{密码科学与技术2024级一班}
+\completiondate{\today}
+
+% 参考资料写入 references.bib；直接引用使用 \labquote[页码]{文献键}。
+\addbibresource{references.bib}
+
+\begin{document}
+\makecover
+
+\input{content/1lab_target.tex}
+\input{content/2lab_principle.tex}
+
+\section{实验设置}
+
+\subsection{实验分工与配置说明}
+
+本组采用分工协作的方式完成本次实验。各成员在自己的 环境中独立完成实验、记录终端输出和抓包截图，再按照实验分工汇总整理报告。由于虚拟机网卡连接、网卡名称、地址分配和实验推进顺序可能存在差异，实际配置并不严格与实验指导书逐项相同，但保持拓扑关系和实验现象满足要求。
+具体分工如下:
+\begin{table}[H]
+    \centering
+    \caption{本组实验报告撰写分工}
+    \label{tab:group-division}
+    \renewcommand{\arraystretch}{1.35}
+    \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{3.0cm} >{\raggedright\arraybackslash}p{3.2cm} X}
+        \toprule
+        成员 & 正文负责任务 & 说明 \\
+        \midrule
+        江李阳 & 实验一：ARP Request 方式实现 ARP 缓存污染 & 负责实验一正文、网络拓扑的搭建和ARP Request 投毒实验的结果分析。 \\
+        王健一 & 实验二：ARP 中间人攻击 & 负责实验二正文、网络拓扑的搭建、ARP 中间人攻击和HTTP Digest 认证分析。 \\
+        邱泽辉 & 实验一：ARP Reply 方式实现 ARP 缓存污染 & 负责实验一正文、网络拓扑的搭建和ARP Reply 投毒实验的结果分析。 \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+% \subsection{整体网络拓扑}
+% \todo{填写整体拓扑结构，并在此插入拓扑图。}
+
+\input{content/task1.tex}
+
+\input{content/task3.tex}
+
+\section{实验讨论}
+\input{content/discussion.tex}
+
+\section{参考资料}
+\nocite{labguide,rfc7616,scapy,wireshark}
+\printbibliography[heading=none]
+
+\newpage
+\appendix
+\section{附录：关键代码}
+\input{content/append/key-code.tex}
+
+\end{document}

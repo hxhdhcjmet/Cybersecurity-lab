@@ -1,0 +1,172 @@
+name: lab3
+services:
+  client-1:
+    build:
+      context: .
+      dockerfile: dockerfiles/client-1.Dockerfile
+    container_name: "attacker"
+    hostname: "attacker"
+    labels:
+      topology.name: "attacker"
+      topology.role: "client"
+    privileged: true
+    sysctls:
+      net.ipv4.ip_forward: "0"
+    command: ["sh", "-c", "ip route replace 192.168.4.0/24 via 192.168.2.10 && ip route replace 192.168.3.0/24 via 192.168.2.10 && tail -f /dev/null"]
+    networks:
+      net_link_link-1:
+        ipv4_address: 192.168.2.100
+        mac_address: 02:42:c8:00:01:01
+  router-1:
+    build:
+      context: .
+      dockerfile: dockerfiles/router-1.Dockerfile
+    container_name: "router"
+    hostname: "router"
+    labels:
+      topology.name: "router"
+      topology.role: "router"
+    privileged: true
+    platform: linux/arm64
+    sysctls:
+      net.ipv4.ip_forward: "1"
+    command: ["sh", "-c", "nft -f /etc/topology-mirror.nft && tail -f /dev/null"]
+    networks:
+      net_link_link-1:
+        ipv4_address: 192.168.2.10
+        mac_address: 02:42:c8:00:01:02
+      net_sw_switch-1:
+        ipv4_address: 192.168.4.10
+        mac_address: 02:42:ac:11:00:02
+      net_link_link-7:
+        ipv4_address: 192.168.3.10
+        mac_address: 02:42:ac:11:00:06
+  server-1:
+    build:
+      context: .
+      dockerfile: dockerfiles/server-1.Dockerfile
+    container_name: "server"
+    hostname: "server"
+    labels:
+      topology.name: "server"
+      topology.role: "server"
+    privileged: true
+    environment:
+      SERVER_PASSWORD: ${SERVER_PASSWORD}
+    command: ["sh", "-c", "ip route replace 192.168.2.0/24 via 192.168.4.10 && ip route replace 192.168.3.0/24 via 192.168.4.10 && printf 'lab:%s\\n' \"$${SERVER_PASSWORD}\" | chpasswd && mkdir -p /run/sshd /var/run/vsftpd/empty && ssh-keygen -A && /usr/sbin/sshd && /usr/sbin/vsftpd /etc/vsftpd.conf && /bin/busybox telnetd -p 23 -l /bin/login && exec apache2ctl -D FOREGROUND"]
+    networks:
+      net_sw_switch-1:
+        ipv4_address: 192.168.4.105
+        mac_address: 02:42:ac:11:00:03
+  client-2:
+    build:
+      context: .
+      dockerfile: dockerfiles/client-2.Dockerfile
+    container_name: "server2"
+    hostname: "server2"
+    labels:
+      topology.name: "server2"
+      topology.role: "server"
+    privileged: true
+    environment:
+      SERVER_PASSWORD: ${SERVER_PASSWORD}
+    command: ["sh", "-c", "ip route replace 192.168.2.0/24 via 192.168.4.10 && ip route replace 192.168.3.0/24 via 192.168.4.10 && printf 'lab:%s\\n' \"$${SERVER_PASSWORD}\" | chpasswd && mkdir -p /run/sshd /var/run/vsftpd/empty && ssh-keygen -A && /usr/sbin/sshd && /usr/sbin/vsftpd /etc/vsftpd.conf && /bin/busybox telnetd -p 23 -l /bin/login && exec apache2ctl -D FOREGROUND"]
+    networks:
+      net_sw_switch-1:
+        ipv4_address: 192.168.4.67
+        mac_address: 02:42:ac:11:00:04
+  client-3:
+    build:
+      context: .
+      dockerfile: dockerfiles/client-3.Dockerfile
+    container_name: "server3"
+    hostname: "server3"
+    labels:
+      topology.name: "server3"
+      topology.role: "server"
+    privileged: true
+    environment:
+      SERVER_PASSWORD: ${SERVER_PASSWORD}
+    command: ["sh", "-c", "ip route replace 192.168.2.0/24 via 192.168.4.10 && ip route replace 192.168.3.0/24 via 192.168.4.10 && printf 'lab:%s\\n' \"$${SERVER_PASSWORD}\" | chpasswd && mkdir -p /run/sshd /var/run/vsftpd/empty && ssh-keygen -A && /usr/sbin/sshd && /usr/sbin/vsftpd /etc/vsftpd.conf && /bin/busybox telnetd -p 23 -l /bin/login && exec apache2ctl -D FOREGROUND"]
+    networks:
+      net_sw_switch-1:
+        ipv4_address: 192.168.4.68
+        mac_address: 02:42:ac:11:00:05
+  client-4:
+    build:
+      context: .
+      dockerfile: dockerfiles/client-4.Dockerfile
+    container_name: "server1"
+    hostname: "server1"
+    labels:
+      topology.name: "server1"
+      topology.role: "server"
+    privileged: true
+    environment:
+      SERVER_PASSWORD: ${SERVER_PASSWORD}
+    command: ["sh", "-c", "ip route replace 192.168.2.0/24 via 192.168.4.10 && ip route replace 192.168.3.0/24 via 192.168.4.10 && printf 'lab:%s\\n' \"$${SERVER_PASSWORD}\" | chpasswd && mkdir -p /run/sshd /var/run/vsftpd/empty && ssh-keygen -A && /usr/sbin/sshd && /usr/sbin/vsftpd /etc/vsftpd.conf && /bin/busybox telnetd -p 23 -l /bin/login && exec apache2ctl -D FOREGROUND"]
+    networks:
+      net_sw_switch-1:
+        ipv4_address: 192.168.4.61
+        mac_address: 02:42:ac:11:00:01
+  client-5:
+    build:
+      context: .
+      dockerfile: dockerfiles/client-5.Dockerfile
+    container_name: "user"
+    hostname: "user"
+    labels:
+      topology.name: "user"
+      topology.role: "client"
+    privileged: true
+    shm_size: 512m
+    environment:
+      VNC_PW: ${VNC_PW}
+    ports:
+      - "127.0.0.1:6901:6901"
+    post_start:
+      - command: ["sh", "-c", "ip route replace 192.168.2.0/24 via 192.168.3.10 && ip route replace 192.168.4.0/24 via 192.168.3.10"]
+        user: root
+    networks:
+      net_link_link-7:
+        ipv4_address: 192.168.3.100
+        mac_address: 02:42:ac:11:00:07
+  server-2:
+    build:
+      context: .
+      dockerfile: dockerfiles/server-2.Dockerfile
+    container_name: "server0"
+    hostname: "server0"
+    labels:
+      topology.name: "server0"
+      topology.role: "server"
+    privileged: true
+    environment:
+      SERVER_PASSWORD: ${SERVER_PASSWORD}
+    command: ["sh", "-c", "ip route replace 192.168.2.0/24 via 192.168.4.10 && ip route replace 192.168.3.0/24 via 192.168.4.10 && printf 'lab:%s\\n' \"$${SERVER_PASSWORD}\" | chpasswd && mkdir -p /run/sshd /var/run/vsftpd/empty && ssh-keygen -A && /usr/sbin/sshd && /usr/sbin/vsftpd /etc/vsftpd.conf && /bin/busybox telnetd -p 23 -l /bin/login && exec apache2ctl -D FOREGROUND"]
+    networks:
+      net_sw_switch-1:
+        ipv4_address: 192.168.4.106
+        mac_address: 02:42:ac:11:00:08
+networks:
+  net_link_link-1:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: "false"
+    ipam:
+      config:
+        - subnet: 192.168.2.0/24
+  net_sw_switch-1:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: "false"
+    ipam:
+      config:
+        - subnet: 192.168.4.0/24
+  net_link_link-7:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: "false"
+    ipam:
+      config:
+        - subnet: 192.168.3.0/24

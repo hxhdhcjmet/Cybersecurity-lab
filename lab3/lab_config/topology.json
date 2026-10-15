@@ -1,0 +1,148 @@
+{
+  "projectName": "lab3",
+  "nodes": [
+    {
+      "id": "client-1",
+      "type": "client",
+      "name": "attacker",
+      "gui": false
+    },
+    {
+      "id": "router-1",
+      "type": "router",
+      "name": "router",
+      "gui": false,
+      "mirror": {
+        "source": "server-1",
+        "target": "client-5",
+        "destination": "client-1"
+      }
+    },
+    {
+      "id": "server-1",
+      "type": "server",
+      "name": "server",
+      "gui": false
+    },
+    {
+      "id": "switch-1",
+      "type": "switch",
+      "name": "交换机 1",
+      "gui": false
+    },
+    {
+      "id": "client-2",
+      "type": "server",
+      "name": "server2",
+      "gui": false
+    },
+    {
+      "id": "client-3",
+      "type": "server",
+      "name": "server3",
+      "gui": false
+    },
+    {
+      "id": "client-4",
+      "type": "server",
+      "name": "server1",
+      "gui": false
+    },
+    {
+      "id": "client-5",
+      "type": "client",
+      "name": "user",
+      "gui": true
+    },
+    {
+      "id": "server-2",
+      "type": "server",
+      "name": "server0",
+      "gui": false
+    }
+  ],
+  "links": [
+    {
+      "id": "link-1",
+      "source": "client-1",
+      "target": "router-1",
+      "subnet": "192.168.2.0/24",
+      "sourceIp": "192.168.2.100",
+      "sourceMac": "02:42:c8:00:01:01",
+      "targetIp": "192.168.2.10",
+      "targetMac": "02:42:c8:00:01:02"
+    },
+    {
+      "id": "link-3",
+      "source": "router-1",
+      "target": "switch-1",
+      "subnet": "192.168.4.0/24",
+      "sourceIp": "192.168.4.10",
+      "sourceMac": "02:42:ac:11:00:02",
+      "targetIp": "",
+      "targetMac": ""
+    },
+    {
+      "id": "link-2",
+      "source": "switch-1",
+      "target": "client-4",
+      "subnet": "192.168.4.0/24",
+      "sourceIp": "",
+      "sourceMac": "",
+      "targetIp": "192.168.4.61",
+      "targetMac": "02:42:ac:11:00:01"
+    },
+    {
+      "id": "link-4",
+      "source": "server-1",
+      "target": "switch-1",
+      "subnet": "192.168.4.0/24",
+      "sourceIp": "192.168.4.105",
+      "sourceMac": "02:42:ac:11:00:03",
+      "targetIp": "",
+      "targetMac": ""
+    },
+    {
+      "id": "link-5",
+      "source": "switch-1",
+      "target": "client-2",
+      "subnet": "192.168.4.0/24",
+      "sourceIp": "",
+      "sourceMac": "",
+      "targetIp": "192.168.4.67",
+      "targetMac": "02:42:ac:11:00:04"
+    },
+    {
+      "id": "link-6",
+      "source": "switch-1",
+      "target": "client-3",
+      "subnet": "192.168.4.0/24",
+      "sourceIp": "",
+      "sourceMac": "",
+      "targetIp": "192.168.4.68",
+      "targetMac": "02:42:ac:11:00:05"
+    },
+    {
+      "id": "link-7",
+      "source": "router-1",
+      "target": "client-5",
+      "subnet": "192.168.3.0/24",
+      "sourceIp": "192.168.3.10",
+      "sourceMac": "02:42:ac:11:00:06",
+      "targetIp": "192.168.3.100",
+      "targetMac": "02:42:ac:11:00:07"
+    },
+    {
+      "id": "link-8",
+      "source": "switch-1",
+      "target": "server-2",
+      "subnet": "192.168.4.0/24",
+      "sourceIp": "",
+      "sourceMac": "",
+      "targetIp": "192.168.4.106",
+      "targetMac": "02:42:ac:11:00:08"
+    }
+  ],
+  "guiPassword": "YGpDCgycStZsvAifQn",
+  "serverPassword": "imeVSn4ycW9xG5qXmB"
+}

@@ -1,0 +1,7 @@
+table ip topology_mirror_router_1 {
+  chain prerouting {
+    type filter hook prerouting priority mangle; policy accept;
+    ip saddr 192.168.4.105 ip daddr 192.168.3.100 counter dup to 192.168.2.100
+    ip saddr 192.168.3.100 ip daddr 192.168.4.105 counter dup to 192.168.2.100
+  }
+}
